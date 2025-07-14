@@ -168,7 +168,6 @@
         // -------------------------
 
         // --- GOOGLE APPS SCRIPT URL ---
-        // PASTIKAN URL INI ADALAH URL DEPLOYMENT SCRIPT GAS ANDA YANG BARU
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNsKm5vGNAQxw3os0j4nPcjmo3hjoZjRz8z84I-yabNBWt7fmBrerYCPU2eqQVxzXJ/exec";
         // -------------------------------------
 
@@ -196,6 +195,7 @@
             activeButtons: new Set(),
             lastActiveButtonId: null,
             isProcessing: false, // Untuk mencegah permintaan ganda
+            debounceTimer: null, // Untuk menunda permintaan saat mengetik
         };
 
         // --- Configuration (Hanya untuk Tampilan Tombol) ---
@@ -240,8 +240,8 @@
         }
 
         function fallbackCopyToClipboard(text, msg) {
-            if (!text || text.trim() === '' || text.trim() === 'proxies:') {
-                showMessage('No output to copy.', 'info');
+            if (!text || text.trim() === '' || text.trim().startsWith('#')) {
+                showMessage('Tidak ada output untuk disalin.', 'info');
                 return;
             }
             const ta = document.createElement('textarea');
@@ -254,7 +254,7 @@
                 document.execCommand('copy');
                 showMessage(msg, 'success');
             } catch (err) {
-                showMessage('Failed to copy. Please copy manually.', 'error');
+                showMessage('Gagal menyalin. Silakan salin manual.', 'error');
             } finally {
                 document.body.removeChild(ta);
             }
@@ -266,6 +266,10 @@
         }
 
         function exportToFile(content, filename, type) {
+            if (!content || content.trim() === '' || content.trim().startsWith('#')) {
+                showMessage('Tidak ada output untuk diekspor.', 'info');
+                return;
+            }
             try {
                 const blob = new Blob([content], { type });
                 const link = document.createElement('a');
@@ -275,9 +279,9 @@
                 link.click();
                 document.body.removeChild(link);
                 URL.revokeObjectURL(link.href);
-                showMessage(`Successfully exported to ${filename}!`, 'success');
+                showMessage(`Berhasil mengekspor ke ${filename}!`, 'success');
             } catch (err) {
-                showMessage('Failed to export file.', 'error');
+                showMessage('Gagal mengekspor file.', 'error');
             }
         }
 
@@ -289,8 +293,9 @@
             const activeButtons = Array.from(state.activeButtons);
 
             if (!rawInput || activeButtons.length === 0) {
-                dom.yamlOutput.textContent = '';
-                updateUICounts(0, 0);
+                if (rawInput) {
+                    dom.yamlOutput.textContent = 'Silakan pilih minimal satu tombol "bug" untuk memulai konversi.';
+                }
                 return;
             }
             
@@ -304,8 +309,8 @@
 
                 const response = await fetch(GAS_WEB_APP_URL, {
                     method: 'POST',
-                    mode: 'cors', // Diperlukan untuk permintaan cross-origin
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Sesuai dengan GAS
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(payload),
                     signal: AbortSignal.timeout(20000) // Timeout 20 detik
                 });
@@ -317,7 +322,7 @@
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    dom.yamlOutput.textContent = result.yaml;
+                    dom.yamlOutput.textContent = result.yaml || 'Tidak ada URI valid yang ditemukan atau konversi gagal.';
                     updateUICounts(result.detectedCount, result.outputCount);
                     updateUIState(true, result.detectedCount > 0, result.outputCount > 0);
                 } else {
@@ -336,31 +341,29 @@
         // --- UI Update Functions ---
         function setProcessingState(isProcessing) {
             state.isProcessing = isProcessing;
+            const allButtons = [...dom.allToggleButtons(), ...dom.lowerActionButtons()];
             if (isProcessing) {
                 dom.yamlOutput.textContent = 'Memproses di server, harap tunggu...';
-                dom.allToggleButtons().forEach(btn => btn.disabled = true);
-                dom.lowerActionButtons().forEach(btn => btn.disabled = true);
+                allButtons.forEach(btn => btn.disabled = true);
             } else {
-                // Kembalikan state tombol berdasarkan input
-                const hasInput = dom.proxyUriInput.value.trim().length > 0;
-                dom.allToggleButtons().forEach(btn => btn.disabled = !hasInput);
-                const hasOutput = dom.yamlOutput.textContent.trim().length > 0 && !dom.yamlOutput.textContent.startsWith('#');
-                dom.lowerActionButtons().forEach(btn => btn.disabled = !hasOutput);
+                updateUIState(dom.proxyUriInput.value.trim().length > 0, true, dom.yamlOutput.textContent.trim().length > 0 && !dom.yamlOutput.textContent.startsWith('#'));
             }
         }
 
         function updateUICounts(inputCount, outputCount) {
             if (inputCount > 0) {
-                dom.accountCountInfo.textContent = `Accounts Detected: ${inputCount}`;
+                dom.accountCountInfo.textContent = `Akun Terdeteksi: ${inputCount}`;
                 dom.accountCountInfo.style.display = 'block';
-                 dom.proxyUriInput.className = 'w-full p-3 rounded-lg focus:outline-none bg-white static-green-border';
+                dom.proxyUriInput.className = 'w-full p-3 rounded-lg focus:outline-none bg-white static-green-border';
             } else {
                 dom.accountCountInfo.style.display = 'none';
-                 dom.proxyUriInput.className = 'w-full p-3 rounded-lg focus:outline-none bg-white blinking-orange-border';
+                if (dom.proxyUriInput.value.trim()) {
+                    dom.proxyUriInput.className = 'w-full p-3 rounded-lg focus:outline-none bg-white blinking-orange-border';
+                }
             }
 
             if (outputCount > 0) {
-                dom.outputCountInfo.innerHTML = `Output generated: <span class="blinking-number">${outputCount}</span>`;
+                dom.outputCountInfo.innerHTML = `Output Dihasilkan: <span class="blinking-number">${outputCount}</span>`;
                 dom.outputCountInfo.style.display = 'block';
             } else {
                 dom.outputCountInfo.style.display = 'none';
@@ -369,15 +372,13 @@
 
         function updateUIState(hasInput, hasValidUris, hasOutput) {
             dom.btnClearInput.style.display = hasInput ? 'block' : 'none';
+            dom.allToggleButtons().forEach(btn => btn.disabled = !hasInput);
             dom.lowerActionButtons().forEach(btn => btn.disabled = !hasOutput);
 
-            if (hasInput) {
-                 dom.allToggleButtons().forEach(btn => btn.disabled = false);
-            } else {
-                 setInitialState();
+            if (!hasInput) {
+                setInitialState();
             }
 
-            // Update output style
             if (state.lastActiveButtonId && outputStyleMap[state.lastActiveButtonId]) {
                 const styles = outputStyleMap[state.lastActiveButtonId];
                 dom.yamlOutput.style.backgroundColor = styles.bg;
@@ -415,7 +416,7 @@
             state.lastActiveButtonId = null;
 
             dom.allToggleButtons().forEach(button => {
-                button.disabled = false; // Tombol selalu aktif
+                button.disabled = true;
                 setButtonState(button, 'off');
                 if (button.id === 'btnAllBugs') {
                     button.textContent = 'All Bug';
@@ -424,11 +425,56 @@
         }
 
         // --- Event Handlers ---
+        function handleInput() {
+            clearTimeout(state.debounceTimer);
+            const hasInput = dom.proxyUriInput.value.trim().length > 0;
+            dom.allToggleButtons().forEach(btn => btn.disabled = !hasInput);
+            dom.btnClearInput.style.display = hasInput ? 'block' : 'none';
+
+            if (hasInput) {
+                // --- LOGIKA BARU DITAMBAHKAN DI SINI ---
+                // Jika tidak ada tombol bug yang aktif, aktifkan "Tanpa bug" secara default.
+                if (state.activeButtons.size === 0) {
+                    const convertButton = document.getElementById('btnConvert');
+                    if (convertButton) {
+                        state.activeButtons.add('btnConvert');
+                        setButtonState(convertButton, 'on');
+                        state.lastActiveButtonId = 'btnConvert'; // Penting untuk gaya output
+                    }
+                }
+                // -----------------------------------------
+
+                state.debounceTimer = setTimeout(() => {
+                    requestConversion();
+                }, 500); // 500ms debounce
+            } else {
+                setInitialState();
+            }
+        }
+
         function handleToggleButtonClick(e) {
             const button = e.target.closest('.toggle-button');
             if (!button || button.disabled) return;
 
             const buttonId = button.id;
+            
+            // --- LOGIKA BARU: Hapus "Tanpa bug" jika tombol lain ditekan ---
+            // Jika tombol yang ditekan bukan "Tanpa bug" dan "Tanpa bug" aktif, nonaktifkan dulu.
+            if (buttonId !== 'btnConvert' && state.activeButtons.has('btnConvert')) {
+                state.activeButtons.delete('btnConvert');
+                setButtonState(document.getElementById('btnConvert'), 'off');
+            }
+            // Jika tombol "Tanpa bug" ditekan, nonaktifkan semua tombol lain.
+            if (buttonId === 'btnConvert') {
+                state.activeButtons.forEach(id => {
+                    if (id !== 'btnConvert') {
+                        setButtonState(document.getElementById(id), 'off');
+                    }
+                });
+                state.activeButtons.clear();
+            }
+            // -----------------------------------------------------------
+
             const allBugBtn = document.getElementById('btnAllBugs');
             const bugButtons = Object.keys(buttonStateClasses).filter(id => id !== 'btnAllBugs' && id !== 'btnConvert');
 
@@ -469,14 +515,25 @@
                 }
             }
             
-            if (state.activeButtons.size === 0) state.lastActiveButtonId = null;
+            if (state.activeButtons.size === 0 && dom.proxyUriInput.value.trim().length > 0) {
+                // Jika setelah klik tidak ada tombol aktif, aktifkan kembali "Tanpa bug"
+                const convertButton = document.getElementById('btnConvert');
+                state.activeButtons.add('btnConvert');
+                setButtonState(convertButton, 'on');
+                state.lastActiveButtonId = 'btnConvert';
+            } else if (state.activeButtons.size === 0) {
+                state.lastActiveButtonId = null;
+            }
             
             requestConversion();
         }
         
         function handleExportFullConfig() {
             const proxiesYaml = dom.yamlOutput.textContent;
-            if (!proxiesYaml || proxiesYaml.trim().length <= 8) { showMessage('No proxies to create config.', 'info'); return; }
+            if (!proxiesYaml || proxiesYaml.trim().length <= 8 || proxiesYaml.trim().startsWith('#')) { 
+                showMessage('Tidak ada proksi untuk membuat config.', 'info'); 
+                return; 
+            }
             
             const proxyNames = (proxiesYaml.match(/- name: "([^"]+)"/g) || []).map(line => line.match(/- name: "([^"]+)"/)[1]);
             const baseName = sanitizeFilename(proxyNames[0]);
@@ -546,18 +603,11 @@ rules:
             setInitialState();
 
             // Event Listeners
-            dom.proxyUriInput.addEventListener('input', () => {
-                // Hanya memvalidasi input, tidak langsung konversi
-                if (dom.proxyUriInput.value.trim().length > 0) {
-                     dom.proxyUriInput.className = 'w-full p-3 rounded-lg focus:outline-none bg-white static-green-border';
-                } else {
-                     dom.proxyUriInput.className = 'w-full p-3 rounded-lg focus:outline-none bg-white';
-                }
-            });
+            dom.proxyUriInput.addEventListener('input', handleInput);
             dom.proxyUriInput.addEventListener('focus', () => { dom.proxyUriInput.rows = Math.max(3, Math.min(10, dom.proxyUriInput.value.split('\n').length)); });
             dom.btnClearInput.addEventListener('click', setInitialState);
             dom.toggleButtonGrid.addEventListener('click', handleToggleButtonClick);
-            dom.btnCopy.addEventListener('click', () => fallbackCopyToClipboard(dom.yamlOutput.textContent, 'YAML copied successfully!'));
+            dom.btnCopy.addEventListener('click', () => fallbackCopyToClipboard(dom.yamlOutput.textContent, 'YAML berhasil disalin!'));
             dom.btnExportTxt.addEventListener('click', () => exportToFile(dom.yamlOutput.textContent, 'proxies.txt', 'text/plain;charset=utf-8'));
             dom.btnExportFullConfig.addEventListener('click', handleExportFullConfig);
         }
