@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SRPCOM CONVERTER v.6.7</title>
+    <title>SRPCOM CONVERTER v.6.8</title>
     <!-- Open Graph Meta Tags for Social Media Previews -->
-    <meta property="og:title" id="ogTitle" content="SRPCOM CONVERTER v.6.7">
+    <meta property="og:title" id="ogTitle" content="SRPCOM CONVERTER v.6.8">
     <meta property="og:description" content="Konversi berbagai format proxy ke YAML dengan mudah. Mendukung VLESS, VMess, Trojan, dan HTTP Upgrade.">
     <meta property="og:image" content="https://github.com/srpcom/netlify/blob/main/logo%20kecil%20srpcom.png?raw=true">
     <meta property="og:url" content=""> <!-- You can set the final URL here later -->
@@ -163,13 +163,13 @@
 
     <script>
         // --- APPLICATION SETTINGS ---
-        const APP_VERSION = "6.6";
+        const APP_VERSION = "6.8";
         const APP_NAME = "SRPCOM CONVERTER";
         // -------------------------
 
-        // --- GOOGLE APPS SCRIPT SETTINGS ---
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNsKm5vGNAQxw3os0j4nPcjmo3hjoZjRz8z84I-yabNBWt7fmBrerYCPU2eqQVxzXJ/exec";
-        const SECRET_KEY = "makan"; // This must match the SECRET_KEY in your GAS script
+        // --- GOOGLE APPS SCRIPT URL ---
+        // PASTIKAN URL INI ADALAH URL DEPLOYMENT SCRIPT GAS ANDA YANG BARU
+        const GAS_WEB_APP_URL = "GANTI_DENGAN_URL_WEB_APP_GAS_ANDA";
         // -------------------------------------
 
         // --- DOM Element Cache ---
@@ -195,22 +195,10 @@
         const state = {
             activeButtons: new Set(),
             lastActiveButtonId: null,
-            lastSavedUris: new Set(), // To prevent duplicate saves
+            isProcessing: false, // Untuk mencegah permintaan ganda
         };
 
-        // --- Configuration ---
-        const modificationRules = {
-            'btnVidio':    { suffix: '_vidio',    rule: { newServer: 'quiz.vidio.com' } },
-            'btnXcvip':    { suffix: '_xcvip',    rule: { newServer: 'xcvip.srpcom.online' } },
-            'btnZoom':     { suffix: '_xcvipwc',  rule: { newServer: 'support.zoom.us', prefixSniHost: 'support.zoom.us.' } },
-            'btnVidioSni': { suffix: '_vidiosni', rule: { newSni: 'quiz.vidio.com', newHost: 'quiz.vidio.com' } },
-            'btnAvaWc':    { suffix: '_avawc',    rule: { newServer: 'ava.game.naver.com', prefixSniHost: 'ava.game.naver.com.' } },
-            'btnFb':       { suffix: '_fb',       rule: { newServer: 'investor.fb.com' } },
-            'btnSpotify':  { suffix: '_spotify',  rule: { newServer: 'investors.spotify.com' } },
-            'btnNetflix':  { suffix: '_netflix',  rule: { newServer: 'cache.netflix.com' } },
-            'btnConvert':  { suffix: '',          rule: {} } 
-        };
-
+        // --- Configuration (Hanya untuk Tampilan Tombol) ---
         const buttonStateClasses = {
             'btnVidio':    { on: ['bg-purple-600', 'text-white', 'active'], off: ['bg-white', 'text-purple-600', 'border-purple-400'] },
             'btnXcvip':    { on: ['bg-indigo-600', 'text-white', 'active'], off: ['bg-white', 'text-indigo-600', 'border-indigo-400'] },
@@ -249,17 +237,6 @@
                 dom.messageBox.style.opacity = 0;
                 setTimeout(() => { dom.messageBox.style.display = 'none'; }, 500);
             }, duration);
-        }
-
-        function decodeBase64(str) {
-            str = str.replace(/-/g, '+').replace(/_/g, '/');
-            while (str.length % 4) { str += '='; }
-            try {
-                return decodeURIComponent(atob(str).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-            } catch (e) {
-                console.error("Base64 Decode Error:", e);
-                return null; // Return null on failure
-            }
         }
 
         function fallbackCopyToClipboard(text, msg) {
@@ -305,287 +282,81 @@
         }
 
         // --- Core Logic ---
-        function parseUri(uri) {
-            try {
-                if (uri.startsWith('vmess://')) {
-                    const decodedJson = decodeBase64(uri.substring(8).trim());
-                    if (!decodedJson) return null;
-                    const config = JSON.parse(decodedJson);
-                    return {
-                        type: 'vmess',
-                        name: config.ps || 'VMess_Proxy',
-                        server: config.add,
-                        port: config.port,
-                        uuid: config.id,
-                        alterId: config.aid || 0,
-                        cipher: 'auto',
-                        tls: config.tls === 'tls',
-                        network: config.net || 'tcp',
-                        path: config.path,
-                        host: config.host,
-                        sni: config.sni,
-                        isHttpUpgrade: config.net === 'httpupgrade',
-                    };
-                }
-                const url = new URL(uri);
-                const params = url.searchParams;
-                const name = decodeURIComponent(url.hash.substring(1));
+        async function requestConversion() {
+            if (state.isProcessing) return; // Mencegah permintaan ganda
 
-                if (uri.startsWith('vless://')) {
-                    return {
-                        type: 'vless',
-                        name: name || `vless-${url.hostname}`,
-                        server: url.hostname,
-                        port: url.port,
-                        uuid: url.username,
-                        network: params.get('type') || 'tcp',
-                        tls: params.get('security') === 'tls',
-                        sni: params.get('sni'),
-                        host: params.get('host'),
-                        path: params.get('path'),
-                        serviceName: params.get('serviceName'),
-                        isHttpUpgrade: params.get('type') === 'httpupgrade',
-                    };
-                }
-                if (uri.startsWith('trojan://')) {
-                    return {
-                        type: 'trojan',
-                        name: name || `trojan-${url.hostname}`,
-                        server: url.hostname,
-                        port: url.port,
-                        password: url.username,
-                        network: params.get('type') || 'tcp',
-                        sni: params.get('sni'),
-                        host: params.get('host'),
-                        path: params.get('path'),
-                        serviceName: params.get('serviceName'),
-                        isHttpUpgrade: params.get('type') === 'httpupgrade',
-                    };
-                }
-            } catch (e) {
-                console.error(`Failed to parse URI: ${uri}`, e);
-                return null;
-            }
-            return null;
-        }
-
-        function generateYaml(parsed, rule, suffix, expiryDate) {
-            // Apply modification rules
-            const finalServer = rule.newServer || parsed.server;
-            let finalSni = parsed.sni || parsed.host || parsed.server;
-            if (rule.newSni) finalSni = rule.newSni;
-            else if (rule.prefixSniHost) finalSni = rule.prefixSniHost + parsed.server;
-
-            let finalHost = parsed.host || parsed.server;
-            if (rule.newHost) finalHost = rule.newHost;
-            else if (rule.prefixSniHost) finalHost = rule.prefixSniHost + parsed.server;
-
-            // Build YAML structure as a JS object
-            const config = {
-                name: `"${parsed.name}${suffix}"`,
-                type: parsed.type,
-                server: finalServer,
-                port: parsed.port,
-                udp: true,
-                'skip-cert-verify': true,
-            };
-
-            // Protocol-specific properties
-            if (parsed.type === 'vmess') {
-                Object.assign(config, { uuid: parsed.uuid, alterId: parsed.alterId, cipher: parsed.cipher });
-            } else if (parsed.type === 'vless') {
-                Object.assign(config, { uuid: parsed.uuid, cipher: 'auto' });
-            } else if (parsed.type === 'trojan') {
-                config.password = `"${parsed.password}"`;
-            }
-
-            // TLS and Network properties
-            if (parsed.isHttpUpgrade) {
-                config.tls = parsed.tls;
-                config.servername = finalSni;
-                config['client-fingerprint'] = 'chrome';
-                config.alpn = ['http/1.1'];
-                config.network = 'ws';
-                config['ws-opts'] = {
-                    path: `"${parsed.path}"`,
-                    headers: {
-                        Host: finalHost,
-                        'v2ray-http-upgrade': true,
-                        'v2ray-http-upgrade-fast-open': false,
-                    }
-                };
-                if (parsed.type === 'trojan') {
-                    delete config.servername;
-                    config.sni = finalSni;
-                }
-            } else {
-                config.tls = parsed.tls;
-                if (config.tls) {
-                    config[parsed.type === 'trojan' ? 'sni' : 'servername'] = finalSni;
-                }
-                config.network = parsed.network;
-                if (parsed.network === 'ws') {
-                    config['ws-opts'] = {
-                        path: `"${parsed.path || '/'}"`,
-                        headers: { Host: finalHost }
-                    };
-                } else if (parsed.network === 'grpc') {
-                    config['grpc-opts'] = { 'grpc-service-name': `"${parsed.serviceName || ''}"` };
-                }
-            }
-            
-            // Convert JS object to YAML string
-            let yamlString = `- ${Object.entries(config).map(([key, value]) => {
-                if (typeof value === 'object' && value !== null) {
-                    if (key === 'alpn') return `alpn:\n   - ${value.join('\n   - ')}`;
-                    const subEntries = Object.entries(value).map(([subKey, subValue]) => {
-                         if (typeof subValue === 'object' && subValue !== null) {
-                             const headerEntries = Object.entries(subValue).map(([hKey, hValue]) => `     ${hKey}: ${hValue}`).join('\n');
-                             return `   ${subKey}:\n${headerEntries}`;
-                         }
-                         return `   ${subKey}: ${subValue}`;
-                    }).join('\n');
-                    return `${key}:\n${subEntries}`;
-                }
-                return `${key}: ${value}`;
-            }).join('\n  ')}`;
-
-            // MODIFIED: Add expiry status with remaining days calculation
-            if (expiryDate) {
-                const expiry = new Date(expiryDate.replace('WIB', '').trim());
-                if (!isNaN(expiry.getTime())) {
-                    const now = new Date();
-                    now.setHours(0, 0, 0, 0);
-                    expiry.setHours(0, 0, 0, 0);
-
-                    const diffTime = expiry - now;
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    
-                    let statusText;
-                    if (diffDays < 0) {
-                        statusText = '(AKUN SUDAH EXPIRED)';
-                    } else {
-                        statusText = `(sisa ${diffDays} hari)`;
-                    }
-                    yamlString += `\n#EXPIRED ON : ${expiryDate} ${statusText}`;
-                } else {
-                    yamlString += `\n#EXPIRED ON : ${expiryDate}`;
-                }
-            } else {
-                // Handle cases where there is no expiry date
-                yamlString += `\n#EXPIRED ON : -`;
-            }
-            
-            return yamlString;
-        }
-
-        function getValidUris(rawInput) {
-            const urisToProcess = new Map();
-            const uriRegex = /(vmess|vless|trojan):\/\/\S+/g;
-            
-            // Define a reliable separator for distinct accounts.
-            // This looks for the header-like line, e.g., "[XRAY/VMESS_WS]"
-            const accountSeparator = /\[\w+\/\w+_\w+\]/;
-            
-            // Split the input into potential account blocks.
-            // We add the separator back to the block for context.
-            const blocks = rawInput.split(accountSeparator).map((part, index, arr) => {
-                if (index > 0) {
-                    const separatorMatch = rawInput.match(new RegExp(accountSeparator.source, 'g'));
-                    return separatorMatch[index - 1] + part;
-                }
-                return part;
-            });
-
-            for (const block of blocks) {
-                const trimmedBlock = block.trim();
-                if (trimmedBlock === '') continue;
-
-                let tlsUri = null;
-                let nonTlsUri = null;
-                let expiry = null;
-
-                const lines = trimmedBlock.split('\n');
-                for (const line of lines) {
-                    const trimmedLine = line.trim();
-                    
-                    if (trimmedLine.startsWith("LINK WS TLS :")) {
-                        const match = trimmedLine.match(uriRegex);
-                        if (match) tlsUri = match[0];
-                    } else if (trimmedLine.startsWith("LINK WS NONE-TLS :")) {
-                        const match = trimmedLine.match(uriRegex);
-                        if (match) nonTlsUri = match[0];
-                    } else if (trimmedLine.toUpperCase().startsWith("EXPIRED ON")) {
-                        const expiryMatch = trimmedLine.match(/(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/);
-                        if (expiryMatch) expiry = expiryMatch[1];
-                    }
-                }
-
-                // Prioritize TLS link if found within the block, otherwise use non-TLS
-                const finalUri = tlsUri || nonTlsUri;
-                if (finalUri && !urisToProcess.has(finalUri)) {
-                    urisToProcess.set(finalUri, { uri: finalUri, expiry });
-                }
-            }
-            
-            // Fallback for unstructured input (just a list of URIs)
-            if (urisToProcess.size === 0) {
-                 const directMatches = rawInput.match(uriRegex);
-                 if (directMatches) {
-                    directMatches.forEach(uri => {
-                        if(!urisToProcess.has(uri)) {
-                             urisToProcess.set(uri, { uri, expiry: null });
-                        }
-                    });
-                 }
-            }
-
-            return Array.from(urisToProcess.values());
-        }
-
-
-        function autoGenerate() {
             const rawInput = dom.proxyUriInput.value.trim();
-            const urisToProcess = getValidUris(rawInput);
-            
-            let finalYaml = 'proxies:\n';
-            let successCount = 0;
+            const activeButtons = Array.from(state.activeButtons);
 
-            const buttonsToProcess = state.activeButtons.has('btnAllBugs')
-                ? Object.keys(modificationRules).filter(id => id !== 'btnConvert')
-                : Array.from(state.activeButtons);
-
-            for (const uriItem of urisToProcess) {
-                const parsedUri = parseUri(uriItem.uri);
-                if (!parsedUri) continue;
-
-                for (const buttonId of buttonsToProcess) {
-                    const mod = modificationRules[buttonId];
-                    if (!mod) continue;
-                    
-                    try {
-                        finalYaml += generateYaml(parsedUri, mod.rule, mod.suffix, uriItem.expiry) + '\n\n';
-                        successCount++;
-                    } catch (e) {
-                        console.error(`Error converting URI ${uriItem.uri} with rule ${buttonId}:`, e);
-                    }
-                }
+            if (!rawInput || activeButtons.length === 0) {
+                dom.yamlOutput.textContent = '';
+                updateUICounts(0, 0);
+                return;
             }
+            
+            setProcessingState(true);
 
-            dom.yamlOutput.textContent = successCount > 0 ? finalYaml.trim() : '';
-            updateUICounts(urisToProcess.length, successCount);
-            updateUIState(rawInput.length > 0, urisToProcess.length > 0, successCount > 0);
-            // Return the results for the handler to use
-            return { urisToProcess, successCount };
+            try {
+                const payload = {
+                    uris: rawInput,
+                    activeButtons: activeButtons
+                };
+
+                const response = await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'cors', // Diperlukan untuk permintaan cross-origin
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Sesuai dengan GAS
+                    body: JSON.stringify(payload),
+                    signal: AbortSignal.timeout(20000) // Timeout 20 detik
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    dom.yamlOutput.textContent = result.yaml;
+                    updateUICounts(result.detectedCount, result.outputCount);
+                    updateUIState(true, result.detectedCount > 0, result.outputCount > 0);
+                } else {
+                    throw new Error(result.message || 'Unknown error from server.');
+                }
+
+            } catch (error) {
+                console.error("Error during conversion request:", error);
+                showMessage(`Gagal memproses: ${error.message}`, 'error', 5000);
+                dom.yamlOutput.textContent = `# Terjadi kesalahan: ${error.message}`;
+            } finally {
+                setProcessingState(false);
+            }
         }
 
         // --- UI Update Functions ---
+        function setProcessingState(isProcessing) {
+            state.isProcessing = isProcessing;
+            if (isProcessing) {
+                dom.yamlOutput.textContent = 'Memproses di server, harap tunggu...';
+                dom.allToggleButtons().forEach(btn => btn.disabled = true);
+                dom.lowerActionButtons().forEach(btn => btn.disabled = true);
+            } else {
+                // Kembalikan state tombol berdasarkan input
+                const hasInput = dom.proxyUriInput.value.trim().length > 0;
+                dom.allToggleButtons().forEach(btn => btn.disabled = !hasInput);
+                const hasOutput = dom.yamlOutput.textContent.trim().length > 0 && !dom.yamlOutput.textContent.startsWith('#');
+                dom.lowerActionButtons().forEach(btn => btn.disabled = !hasOutput);
+            }
+        }
+
         function updateUICounts(inputCount, outputCount) {
             if (inputCount > 0) {
                 dom.accountCountInfo.textContent = `Accounts Detected: ${inputCount}`;
                 dom.accountCountInfo.style.display = 'block';
+                 dom.proxyUriInput.className = 'w-full p-3 rounded-lg focus:outline-none bg-white static-green-border';
             } else {
                 dom.accountCountInfo.style.display = 'none';
+                 dom.proxyUriInput.className = 'w-full p-3 rounded-lg focus:outline-none bg-white blinking-orange-border';
             }
 
             if (outputCount > 0) {
@@ -600,16 +371,10 @@
             dom.btnClearInput.style.display = hasInput ? 'block' : 'none';
             dom.lowerActionButtons().forEach(btn => btn.disabled = !hasOutput);
 
-            if (hasValidUris) {
-                dom.proxyUriInput.className = 'w-full p-3 rounded-lg focus:outline-none bg-white static-green-border';
-                dom.proxyUriInput.placeholder = `${getValidUris(dom.proxyUriInput.value).length} Accounts Detected. Please select a bug button.`;
-                dom.allToggleButtons().forEach(btn => btn.disabled = false);
-            } else if (hasInput) {
-                dom.proxyUriInput.className = 'w-full p-3 rounded-lg focus:outline-none bg-white blinking-orange-border';
-                dom.proxyUriInput.placeholder = 'Paste URI or account details here... No valid accounts detected.';
-                dom.allToggleButtons().forEach(btn => btn.disabled = true);
+            if (hasInput) {
+                 dom.allToggleButtons().forEach(btn => btn.disabled = false);
             } else {
-                setInitialState();
+                 setInitialState();
             }
 
             // Update output style
@@ -633,8 +398,8 @@
 
         function setInitialState() {
             dom.proxyUriInput.value = '';
-            dom.proxyUriInput.placeholder = 'Paste URI or account details here...';
-            dom.proxyUriInput.className = 'w-full p-3 rounded-lg focus:outline-none bg-white blinking-orange-border';
+            dom.proxyUriInput.placeholder = 'Tempel URI atau detail akun di sini...';
+            dom.proxyUriInput.className = 'w-full p-3 rounded-lg focus:outline-none bg-white';
             dom.proxyUriInput.rows = 8;
             
             dom.yamlOutput.textContent = '';
@@ -648,10 +413,9 @@
             
             state.activeButtons.clear();
             state.lastActiveButtonId = null;
-            state.lastSavedUris.clear();
 
             dom.allToggleButtons().forEach(button => {
-                button.disabled = true;
+                button.disabled = false; // Tombol selalu aktif
                 setButtonState(button, 'off');
                 if (button.id === 'btnAllBugs') {
                     button.textContent = 'All Bug';
@@ -659,62 +423,14 @@
             });
         }
 
-        // --- Google Sheet Integration ---
-        async function saveNewAccountsToSheet(urisToProcess, totalConverted) {
-            const newAccounts = urisToProcess.filter(acc => !state.lastSavedUris.has(acc.uri));
-
-            if (newAccounts.length === 0) return;
-
-            // Mark these as "to be saved" immediately to prevent race conditions
-            newAccounts.forEach(acc => state.lastSavedUris.add(acc.uri));
-
-            // Prepare payload with all new accounts and the total count
-            const payload = {
-                accounts: newAccounts.map(acc => {
-                    const parsed = parseUri(acc.uri); // Parse once to reuse
-                    return {
-                        uri: acc.uri,
-                        expiry: acc.expiry,
-                        originalServer: parsed?.server || 'unknown',
-                        name: parsed?.name || 'N/A' // Add the name here
-                    };
-                }),
-                totalConverted: totalConverted
-            };
-
-            try {
-                await fetch(GAS_WEB_APP_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(payload),
-                    signal: AbortSignal.timeout(15000) // 15-second timeout
-                });
-                // Fire-and-forget, no need to check response.
-            } catch (error) {
-                console.error('Error sending batch data to Google Sheet:', error);
-                // If sending fails, allow them to be sent again on the next try.
-                newAccounts.forEach(acc => state.lastSavedUris.delete(acc.uri));
-            }
-        }
-
         // --- Event Handlers ---
-        function handleInput() {
-            const { urisToProcess, successCount } = autoGenerate();
-            if (urisToProcess.length > 0) {
-                saveNewAccountsToSheet(urisToProcess, successCount);
-            }
-        }
-
         function handleToggleButtonClick(e) {
             const button = e.target.closest('.toggle-button');
             if (!button || button.disabled) return;
 
             const buttonId = button.id;
-            dom.proxyUriInput.rows = 1;
-
             const allBugBtn = document.getElementById('btnAllBugs');
-            const bugButtons = Object.keys(modificationRules).filter(id => id !== 'btnAllBugs' && id !== 'btnConvert');
+            const bugButtons = Object.keys(buttonStateClasses).filter(id => id !== 'btnAllBugs' && id !== 'btnConvert');
 
             if (buttonId === 'btnAllBugs') {
                 const isTurningOn = !state.activeButtons.has('btnAllBugs');
@@ -738,7 +454,6 @@
                 setButtonState(button, state.activeButtons.has(buttonId) ? 'on' : 'off');
             }
             
-            // Sync 'All Bug' button state
             const allBugsActive = bugButtons.every(id => state.activeButtons.has(id));
             if (allBugsActive) {
                 state.activeButtons.add('btnAllBugs');
@@ -756,7 +471,7 @@
             
             if (state.activeButtons.size === 0) state.lastActiveButtonId = null;
             
-            autoGenerate();
+            requestConversion();
         }
         
         function handleExportFullConfig() {
@@ -831,7 +546,14 @@ rules:
             setInitialState();
 
             // Event Listeners
-            dom.proxyUriInput.addEventListener('input', handleInput);
+            dom.proxyUriInput.addEventListener('input', () => {
+                // Hanya memvalidasi input, tidak langsung konversi
+                if (dom.proxyUriInput.value.trim().length > 0) {
+                     dom.proxyUriInput.className = 'w-full p-3 rounded-lg focus:outline-none bg-white static-green-border';
+                } else {
+                     dom.proxyUriInput.className = 'w-full p-3 rounded-lg focus:outline-none bg-white';
+                }
+            });
             dom.proxyUriInput.addEventListener('focus', () => { dom.proxyUriInput.rows = Math.max(3, Math.min(10, dom.proxyUriInput.value.split('\n').length)); });
             dom.btnClearInput.addEventListener('click', setInitialState);
             dom.toggleButtonGrid.addEventListener('click', handleToggleButtonClick);
