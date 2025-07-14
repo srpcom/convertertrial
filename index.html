@@ -343,7 +343,8 @@
             state.isProcessing = isProcessing;
             const allButtons = [...dom.allToggleButtons(), ...dom.lowerActionButtons()];
             if (isProcessing) {
-                dom.yamlOutput.textContent = 'Memproses di server, harap tunggu...';
+                // --- PERUBAHAN DI SINI ---
+                dom.yamlOutput.textContent = 'sedang diproses';
                 allButtons.forEach(btn => btn.disabled = true);
             } else {
                 updateUIState(dom.proxyUriInput.value.trim().length > 0, true, dom.yamlOutput.textContent.trim().length > 0 && !dom.yamlOutput.textContent.startsWith('#'));
@@ -432,21 +433,18 @@
             dom.btnClearInput.style.display = hasInput ? 'block' : 'none';
 
             if (hasInput) {
-                // --- LOGIKA BARU DITAMBAHKAN DI SINI ---
-                // Jika tidak ada tombol bug yang aktif, aktifkan "Tanpa bug" secara default.
                 if (state.activeButtons.size === 0) {
                     const convertButton = document.getElementById('btnConvert');
                     if (convertButton) {
                         state.activeButtons.add('btnConvert');
                         setButtonState(convertButton, 'on');
-                        state.lastActiveButtonId = 'btnConvert'; // Penting untuk gaya output
+                        state.lastActiveButtonId = 'btnConvert';
                     }
                 }
-                // -----------------------------------------
 
                 state.debounceTimer = setTimeout(() => {
                     requestConversion();
-                }, 500); // 500ms debounce
+                }, 500);
             } else {
                 setInitialState();
             }
@@ -458,13 +456,10 @@
 
             const buttonId = button.id;
             
-            // --- LOGIKA BARU: Hapus "Tanpa bug" jika tombol lain ditekan ---
-            // Jika tombol yang ditekan bukan "Tanpa bug" dan "Tanpa bug" aktif, nonaktifkan dulu.
             if (buttonId !== 'btnConvert' && state.activeButtons.has('btnConvert')) {
                 state.activeButtons.delete('btnConvert');
                 setButtonState(document.getElementById('btnConvert'), 'off');
             }
-            // Jika tombol "Tanpa bug" ditekan, nonaktifkan semua tombol lain.
             if (buttonId === 'btnConvert') {
                 state.activeButtons.forEach(id => {
                     if (id !== 'btnConvert') {
@@ -473,7 +468,6 @@
                 });
                 state.activeButtons.clear();
             }
-            // -----------------------------------------------------------
 
             const allBugBtn = document.getElementById('btnAllBugs');
             const bugButtons = Object.keys(buttonStateClasses).filter(id => id !== 'btnAllBugs' && id !== 'btnConvert');
@@ -516,7 +510,6 @@
             }
             
             if (state.activeButtons.size === 0 && dom.proxyUriInput.value.trim().length > 0) {
-                // Jika setelah klik tidak ada tombol aktif, aktifkan kembali "Tanpa bug"
                 const convertButton = document.getElementById('btnConvert');
                 state.activeButtons.add('btnConvert');
                 setButtonState(convertButton, 'on');
