@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SRPCOM CONVERTER v.6.8</title>
+    <title>SRPCOM CONVERTER v.6.6</title>
     <!-- Open Graph Meta Tags for Social Media Previews -->
-    <meta property="og:title" id="ogTitle" content="SRPCOM CONVERTER v.6.8">
+    <meta property="og:title" id="ogTitle" content="SRPCOM CONVERTER v.6.6">
     <meta property="og:description" content="Konversi berbagai format proxy ke YAML dengan mudah. Mendukung VLESS, VMess, Trojan, dan HTTP Upgrade.">
     <meta property="og:image" content="https://files.catbox.moe/cdsj88.png">
     <meta property="og:url" content=""> <!-- You can set the final URL here later -->
@@ -140,6 +140,7 @@
                 <button id="btnNetflix" class="toggle-button">netflix</button>
                 <button id="btnVidibeat" class="toggle-button">vidibeat</button>
                 <button id="btnTiktokWC" class="toggle-button">tiktokWC</button> <!-- TOMBOL BARU DITAMBAHKAN -->
+                <button id="btnShopee" class="toggle-button">shopee</button> <!-- TOMBOL BARU DITAMBAHKAN -->
                 <button id="btnConvert" class="toggle-button">Tanpa bug</button>
                 <button id="btnAllBugs" class="toggle-button col-span-3 md:col-span-4">All Bug</button>
             </div>
@@ -165,7 +166,7 @@
 
     <script>
         // --- APPLICATION SETTINGS ---
-        const APP_VERSION = "6.8";
+        const APP_VERSION = "6.6";
         const APP_NAME = "SRPCOM CONVERTER";
         // -------------------------
 
@@ -212,6 +213,7 @@
             'btnNetflix':  { suffix: '_netflix',  rule: { newServer: 'cache.netflix.com' } },
             'btnVidibeat': { suffix: '_vidibeat', rule: { newServer: 'vidi.srpcom.cloud' } },
             'btnTiktokWC': { suffix: '_tiktokwc', rule: { newServer: 'api24-normal.tiktokv.com', prefixSniHost: 'api24-normal.tiktokv.com.' } }, // ATURAN DIPERBARUI
+            'btnShopee':   { suffix: '_shopee',   rule: { newServer: 'cvs-deo.shopeemobile.com' } }, // ATURAN BARU DITAMBAHKAN
             'btnConvert':  { suffix: '',          rule: {} } 
         };
 
@@ -226,6 +228,7 @@
             'btnNetflix':  { on: ['bg-red-700', 'text-white', 'active'], off: ['bg-white', 'text-red-700', 'border-red-500'] },
             'btnVidibeat': { on: ['bg-teal-500', 'text-white', 'active'], off: ['bg-white', 'text-teal-600', 'border-teal-500'] },
             'btnTiktokWC': { on: ['bg-pink-600', 'text-white', 'active'], off: ['bg-white', 'text-pink-600', 'border-pink-500'] }, // STYLE BARU DITAMBAHKAN
+            'btnShopee':   { on: ['bg-orange-500', 'text-white', 'active'], off: ['bg-white', 'text-orange-600', 'border-orange-500'] }, // STYLE BARU DITAMBAHKAN
             'btnConvert':  { on: ['bg-gray-200', 'text-black', 'active'], off: ['bg-white', 'text-gray-500', 'border-gray-400'] },
             'btnAllBugs':  { on: ['all-bugs-on', 'active'], off: ['all-bugs-off'] }
         };
@@ -241,6 +244,7 @@
             'btnNetflix':  { border: '#E50914', bg: '#fee2e2' },
             'btnVidibeat': { border: '#14b8a6', bg: '#ccfbf1' },
             'btnTiktokWC': { border: '#db2777', bg: '#fce7f3' }, // STYLE OUTPUT BARU DITAMBAHKAN
+            'btnShopee':   { border: '#f97316', bg: '#fff7ed' }, // STYLE OUTPUT BARU DITAMBAHKAN
             'btnConvert':  { border: '#3b82f6', bg: '#dbeafe' },
             'btnAllBugs':  { border: '#f59e0b', bg: '#fef3c7' }
         };
@@ -292,7 +296,7 @@
         }
 
         function sanitizeFilename(name) {
-            const baseName = (name || 'config').replace(/_(vidio|xcvip|xcvipwc|vidiosni|avawc|fb|spotify|netflix|vidibeat|tiktokwc)$/, ''); // Ditambahkan tiktokwc
+            const baseName = (name || 'config').replace(/_(vidio|xcvip|xcvipwc|vidiosni|avawc|fb|spotify|netflix|vidibeat|tiktokwc|shopee)$/, ''); // Ditambahkan shopee
             return baseName.replace(/[<>:"/\\|?*\s]+/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '').substring(0, 50) || 'config';
         }
 
