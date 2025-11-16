@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SRPCOM CONVERTER v.6.9</title>
+    <title>SRPCOM CONVERTER v.7.0</title>
     <!-- Open Graph Meta Tags for Social Media Previews -->
-    <meta property="og:title" id="ogTitle" content="SRPCOM CONVERTER v.6.9">
+    <meta property="og:title" id="ogTitle" content="SRPCOM CONVERTER v.7.0">
     <meta property="og:description" content="Konversi berbagai format proxy ke YAML dengan mudah. Mendukung VLESS, VMess, Trojan, dan HTTP Upgrade.">
     <meta property="og:image" content="https://files.catbox.moe/cdsj88.png">
     <meta property="og:url" content=""> <!-- You can set the final URL here later -->
@@ -130,10 +130,8 @@
 
             <!-- Button Grid -->
             <div id="toggleButtonGrid" class="grid grid-cols-3 md:grid-cols-4 gap-4">
-                <button id="btnVidio" class="toggle-button">Vidio</button>
-                <button id="btnXcvip" class="toggle-button">XCVIP</button>
-                <button id="btnZoom" class="toggle-button">xcvipwc</button>
-                <button id="btnVidioSni" class="toggle-button">vidioSNI</button>
+                <button id="btnVidio" class="toggle-button">ProsChamp</button> <!-- PERUBAHAN TEKS TOMBOL -->
+                <button id="btnVidioSni" class="toggle-button">whatsappSNI</button> <!-- PERUBAHAN TEKS TOMBOL -->
                 <button id="btnAvaWc" class="toggle-button">avaWC</button>
                 <button id="btnFb" class="toggle-button">fb</button>
                 <button id="btnSpotify" class="toggle-button">spotify</button>
@@ -141,6 +139,7 @@
                 <button id="btnVidibeat" class="toggle-button">vidibeat</button>
                 <button id="btnTiktokWC" class="toggle-button">tiktokWC</button> <!-- TOMBOL BARU DITAMBAHKAN -->
                 <button id="btnShopee" class="toggle-button">shopee</button> <!-- TOMBOL BARU DITAMBAHKAN -->
+                <button id="btnFreeFireWC" class="toggle-button">FreeFireWC</button> <!-- TOMBOL BARU DITAMBAHKAN -->
                 <button id="btnConvert" class="toggle-button">Tanpa bug</button>
                 <button id="btnAllBugs" class="toggle-button col-span-3 md:col-span-4">All Bug</button>
             </div>
@@ -166,7 +165,7 @@
 
     <script>
         // --- APPLICATION SETTINGS ---
-        const APP_VERSION = "6.9";
+        const APP_VERSION = "7.0";
         const APP_NAME = "SRPCOM CONVERTER";
         // -------------------------
 
@@ -203,10 +202,8 @@
 
         // --- Configuration ---
         const modificationRules = {
-            'btnVidio':    { suffix: '_vidio',    rule: { newServer: 'quiz.vidio.com' } },
-            'btnXcvip':    { suffix: '_xcvip',    rule: { newServer: 'xcvip.srpcom.online' } },
-            'btnZoom':     { suffix: '_xcvipwc',  rule: { newServer: 'support.zoom.us', prefixSniHost: 'support.zoom.us.' } },
-            'btnVidioSni': { suffix: '_vidiosni', rule: { newSni: 'quiz.vidio.com', newHost: 'quiz.vidio.com' } },
+            'btnVidio':    { suffix: '_ProsChamp', rule: { newServer: 'pros.srpcom.cloud' } }, // PERUBAHAN NILAI
+            'btnVidioSni': { suffix: '_whatsappSNI', rule: { newSni: 'chat.whatsapp.com', newHost: 'chat.whatsapp.com' } }, // PERUBAHAN NILAI
             'btnAvaWc':    { suffix: '_avawc',    rule: { newServer: 'ava.game.naver.com', prefixSniHost: 'ava.game.naver.com.' } },
             'btnFb':       { suffix: '_fb',       rule: { newServer: 'investor.fb.com' } },
             'btnSpotify':  { suffix: '_spotify',  rule: { newServer: 'investors.spotify.com' } },
@@ -214,14 +211,13 @@
             'btnVidibeat': { suffix: '_vidibeat', rule: { newServer: 'vidi.srpcom.cloud' } },
             'btnTiktokWC': { suffix: '_tiktokwc', rule: { newServer: 'api24-normal.tiktokv.com', prefixSniHost: 'api24-normal.tiktokv.com.' } }, // ATURAN DIPERBARUI
             'btnShopee':   { suffix: '_shopee',   rule: { newServer: 'cvs-deo.shopeemobile.com' } }, // ATURAN BARU DITAMBAHKAN
+            'btnFreeFireWC': { suffix: '_FreeFireWC', rule: { newServer: 'dl.cvs.freefiremobile.com' } }, // ATURAN BARU DITAMBAHKAN
             'btnConvert':  { suffix: '',          rule: {} } 
         };
 
         const buttonStateClasses = {
-            'btnVidio':    { on: ['bg-purple-600', 'text-white', 'active'], off: ['bg-white', 'text-purple-600', 'border-purple-400'] },
-            'btnXcvip':    { on: ['bg-indigo-600', 'text-white', 'active'], off: ['bg-white', 'text-indigo-600', 'border-indigo-400'] },
-            'btnZoom':     { on: ['bg-red-600', 'text-white', 'active'], off: ['bg-white', 'text-red-600', 'border-red-400'] },
-            'btnVidioSni': { on: ['bg-green-600', 'text-white', 'active'], off: ['bg-white', 'text-green-600', 'border-green-400'] },
+            'btnVidio':    { on: ['bg-purple-600', 'text-white', 'active'], off: ['bg-white', 'text-purple-600', 'border-purple-400'] }, // Style tetap (ungu)
+            'btnVidioSni': { on: ['bg-green-600', 'text-white', 'active'], off: ['bg-white', 'text-green-600', 'border-green-400'] }, // Style tetap (hijau)
             'btnAvaWc':    { on: ['bg-yellow-400', 'text-black', 'active'], off: ['bg-white', 'text-yellow-500', 'border-yellow-400'] },
             'btnFb':       { on: ['bg-blue-800', 'text-white', 'active'], off: ['bg-white', 'text-blue-800', 'border-blue-600'] },
             'btnSpotify':  { on: ['bg-green-500', 'text-white', 'active'], off: ['bg-white', 'text-green-600', 'border-green-500'] },
@@ -229,15 +225,14 @@
             'btnVidibeat': { on: ['bg-teal-500', 'text-white', 'active'], off: ['bg-white', 'text-teal-600', 'border-teal-500'] },
             'btnTiktokWC': { on: ['bg-pink-600', 'text-white', 'active'], off: ['bg-white', 'text-pink-600', 'border-pink-500'] }, // STYLE BARU DITAMBAHKAN
             'btnShopee':   { on: ['bg-orange-500', 'text-white', 'active'], off: ['bg-white', 'text-orange-600', 'border-orange-500'] }, // STYLE BARU DITAMBAHKAN
+            'btnFreeFireWC': { on: ['bg-cyan-500', 'text-white', 'active'], off: ['bg-white', 'text-cyan-600', 'border-cyan-500'] }, // STYLE BARU DITAMBAHKAN
             'btnConvert':  { on: ['bg-gray-200', 'text-black', 'active'], off: ['bg-white', 'text-gray-500', 'border-gray-400'] },
             'btnAllBugs':  { on: ['all-bugs-on', 'active'], off: ['all-bugs-off'] }
         };
 
         const outputStyleMap = {
-            'btnVidio':    { border: '#a855f7', bg: '#f3e8ff' },
-            'btnXcvip':    { border: '#6366f1', bg: '#e0e7ff' },
-            'btnZoom':     { border: '#ef4444', bg: '#fee2e2' },
-            'btnVidioSni': { border: '#22c55e', bg: '#dcfce7' },
+            'btnVidio':    { border: '#a855f7', bg: '#f3e8ff' }, // Style tetap (ungu)
+            'btnVidioSni': { border: '#22c55e', bg: '#dcfce7' }, // Style tetap (hijau)
             'btnAvaWc':    { border: '#facc15', bg: '#fef9c3' },
             'btnFb':       { border: '#1877F2', bg: '#dbeafe' },
             'btnSpotify':  { border: '#1DB954', bg: '#d1fae5' },
@@ -245,6 +240,7 @@
             'btnVidibeat': { border: '#14b8a6', bg: '#ccfbf1' },
             'btnTiktokWC': { border: '#db2777', bg: '#fce7f3' }, // STYLE OUTPUT BARU DITAMBAHKAN
             'btnShopee':   { border: '#f97316', bg: '#fff7ed' }, // STYLE OUTPUT BARU DITAMBAHKAN
+            'btnFreeFireWC': { border: '#06b6d4', bg: '#cffafe' }, // STYLE OUTPUT BARU DITAMBAHKAN
             'btnConvert':  { border: '#3b82f6', bg: '#dbeafe' },
             'btnAllBugs':  { border: '#f59e0b', bg: '#fef3c7' }
         };
@@ -296,7 +292,7 @@
         }
 
         function sanitizeFilename(name) {
-            const baseName = (name || 'config').replace(/_(vidio|xcvip|xcvipwc|vidiosni|avawc|fb|spotify|netflix|vidibeat|tiktokwc|shopee)$/, ''); // Ditambahkan shopee
+            const baseName = (name || 'config').replace(/_(ProsChamp|whatsappSNI|avawc|fb|spotify|netflix|vidibeat|tiktokwc|shopee|FreeFireWC)$/, ''); // Dihapus xcvip, xcvipwc, Ditambah FreeFireWC
             return baseName.replace(/[<>:"/\\|?*\s]+/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '').substring(0, 50) || 'config';
         }
 
